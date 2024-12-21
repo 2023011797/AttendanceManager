@@ -1,0 +1,137 @@
+package pkg;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.*;
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * 출석 관리 프로그램 클래스
+ * 이 클래스는 출석을 관리하고 TTS를 통해 출석을 부르는 프로그램입니다.
+ * 사용자 인터페이스를 제공하고, 학년별 출석 명단을 읽어와 TTS로 부를 수 있습니다.
+ */
+public class AttendanceManager {
+
+    private TTSEngine ttsEngine;  // TTS 엔진 객체
+
+    /**
+     * AttendanceManager 생성자
+     * 생성자에서 TTS 엔진을 초기화하고, GUI를 생성합니다.
+     */
+    public AttendanceManager() {
+        ttsEngine = new TTSEngine();
+        createGUI();  // GUI 생성
+    }
+
+    /**
+     * 학년별 출석 명단 파일을 읽어 학생 리스트를 반환하는 메서드
+     * @param fileName 학생 명단이 저장된 텍스트 파일의 이름
+     * @return 학생 이름을 포함한 리스트
+     * @throws IOException 파일 읽기 오류 발생 시 예외 처리
+     */
+    private List<String> loadStudentList(String fileName) throws IOException {
+        List<String> students = new ArrayList<>();  // 학생 명단 리스트
+        String filePath = "src/" + fileName;  // 파일 경로 설정
+
+        // 파일을 읽기 위한 BufferedReader 객체 생성
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            // 파일에서 한 줄씩 읽어 리스트에 추가
+            while ((line = reader.readLine()) != null) {
+                students.add(line.trim());  // 공백 제거 후 추가
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("파일을 찾을 수 없습니다: " + filePath);
+            throw e;
+        }
+        return students;
+    }
+
+    /**
+     * 사용자 인터페이스(GUI)를 생성하는 메서드
+     * 출석 부르기, 학년 선택, 속도 조절, 상태 표시 등의 기능을 제공합니다.
+     */
+    private void createGUI() {
+        // JFrame 객체를 생성하여 기본 설정
+        JFrame frame = new JFrame("출석 관리 프로그램");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(400, 300);
+
+        // JPanel 객체로 레이아웃 설정
+        JPanel panel = new JPanel();
+        panel.setLayout(new GridLayout(5, 1));
+
+        // 학년 선택 콤보박스
+        JLabel gradeLabel = new JLabel("학년 선택:");
+        JComboBox<String> gradeComboBox = new JComboBox<>(new String[]{"1학년", "2학년", "3학년", "4학년"});
+        panel.add(gradeLabel);
+        panel.add(gradeComboBox);
+
+        // 속도 조절 슬라이더
+        JLabel speedLabel = new JLabel("속도 조절:");
+        JSlider speedSlider = new JSlider(1, 5, 3);  // 속도 범위 (1-5)
+        panel.add(speedLabel);
+        panel.add(speedSlider);
+
+        // 출석 부르기 버튼
+        JButton callButton = new JButton("출석 부르기");
+        panel.add(callButton);
+
+        // 상태 표시 라벨
+        JLabel statusLabel = new JLabel("대기 중...");
+        panel.add(statusLabel);
+
+        // JFrame에 패널 추가
+        frame.add(panel);
+        frame.setVisible(true);
+
+        // 출석 부르기 버튼의 ActionListener
+        callButton.addActionListener(e -> {
+            String grade = (String) gradeComboBox.getSelectedItem();
+            int speed = speedSlider.getValue();
+            statusLabel.setText("출석 호출 중: " + grade);
+
+            // 명단 파일 불러오기 및 TTS 호출
+            try {
+                List<String> students = loadStudentList(grade + ".txt");
+                ttsEngine.setSpeed(speed);  // TTS 속도 설정
+                ttsEngine.startCall(students, statusLabel);  // TTS로 출석 부르기
+            } catch (IOException ex) {
+                statusLabel.setText("명단 파일 로드 실패");
+                ex.printStackTrace();
+            }
+        });
+
+        // 키보드 입력 처리 (스페이스바)
+        frame.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_SPACE) {
+                    // 스페이스바를 눌렀을 때, TTS 호출을 일시 정지하거나 재개
+                    if (ttsEngine.isPaused()) {
+                        ttsEngine.resume();
+                        statusLabel.setText("출석 호출 재개");
+                    } else {
+                        ttsEngine.pause();
+                        statusLabel.setText("출석 호출 중단");
+                    }
+                }
+            }
+        });
+        frame.setFocusable(true);
+        frame.requestFocusInWindow();
+    }
+
+    /**
+     * 프로그램의 실행 시작점
+     * @param args 실행 인자
+     */
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new AttendanceManager());  // 프로그램 실행
+    }
+}
+
+
