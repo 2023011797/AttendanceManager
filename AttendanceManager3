@@ -1,0 +1,9 @@
+/**
+ * 
+ */
+/**
+ * 
+ */
+module 기말과제 {
+    requires java.desktop;  // Swing 라이브러리 사용을 위한 모듈 추가
+}
