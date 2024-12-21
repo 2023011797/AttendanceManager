@@ -1,0 +1,63 @@
+package pkg;
+
+import java.io.*;
+import javax.swing.*;
+import java.util.*;
+
+public class TTSEngine {
+    private boolean isPaused = false;
+
+    // TTS 속도 설정
+    public void setSpeed(int speed) {
+        System.out.println("TTS 속도 설정: " + speed);
+    }
+
+    // 출석 부를 때 학생 이름을 하나씩 TTS로 읽는 메서드
+    public void startCall(List<String> students, JLabel statusLabel) {
+        new Thread(() -> {
+            try {
+                // 학생 목록을 하나씩 읽으며 TTS로 호출
+                for (String student : students) {
+                    // 일시 정지 상태일 경우 대기
+                    if (isPaused) {
+                        synchronized (this) {
+                            wait();
+                        }
+                    }
+
+                    // TTS 호출 명령을 PowerShell로 실행
+                    ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c",
+                            "powershell.exe -Command \"Add-Type -AssemblyName System.Speech;" +
+                                    "$speak = New-Object System.Speech.Synthesis.SpeechSynthesizer;" +
+                                    "$speak.Rate = 1; $speak.Speak('" + student + "');\"");
+                    pb.start().waitFor();  // TTS가 완료될 때까지 기다림
+
+                    // 호출 중인 학생 상태 업데이트
+                    SwingUtilities.invokeLater(() -> statusLabel.setText("호출 중: " + student));
+                }
+
+                // 모든 출석 호출이 끝나면 상태 업데이트
+                SwingUtilities.invokeLater(() -> statusLabel.setText("호출 완료"));
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }).start();
+    }
+
+    // 일시 정지
+    public synchronized void pause() {
+        isPaused = true;
+    }
+
+    // 일시 정지 해제 (출석 부르기 재개)
+    public synchronized void resume() {
+        isPaused = false;
+        notify();
+    }
+
+    // 현재 상태가 일시 정지인지 여부 확인
+    public boolean isPaused() {
+        return isPaused;
+    }
+}
